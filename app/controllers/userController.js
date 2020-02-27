@@ -1,7 +1,6 @@
 const HTTPCodes = require('../sys/httpCodes')
 const userService = require('../services/userService')
-var crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
+const utils = require('../sys/utils');
 
 class UserController {
 
@@ -11,18 +10,10 @@ class UserController {
             message: 'success',
             code: HTTPCodes.OK
         }
-        let user = req.body;
-
-        user.salt = uuidv4();
-
-        var algorithm = 'aes256';
-        var key = user.salt;
-        var cipher = crypto.createCipher(algorithm, key);
-        var encrypted = cipher.update(user.password, 'utf8', 'hex')
-            + cipher.final('hex');
-        user.encryptedPassword = encrypted;
-
         try {
+            let user = req.body;
+            user.salt = utils.getuuid();
+            user.encryptedPassword = utils.encrypt(user.password, user.salt);
             const id = await userService.createUser(user);
             response.data = {
                 id: id
@@ -45,14 +36,12 @@ class UserController {
         }
 
         const dbUser = await userService.getUserByUsername(user.user);
+        console.log('test');
         console.log(dbUser);
-        var algorithm = 'aes256';
-        var key = dbUser[0].salt;
-        var decipher = crypto.createDecipher(algorithm, key);
+        console.log('test2');
 
-        var decrypted = decipher.update(dbUser[0].encrypted_password, 'hex', 'utf8') + decipher.final('utf8');
-
-        if (decrypted == user.password) {
+        const encrypted = utils.encrypt(user.password, dbUser[0].salt);
+        if (encrypted == dbUser[0].encrypted_password) {
             console.log(true);
             res.send(response);
         }
